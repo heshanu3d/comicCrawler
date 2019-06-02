@@ -17,6 +17,10 @@ from PIL import Image
 import re
 import collections
 
+from multiprocessing import Queue
+from Queue import Empty, Full
+
+from threadUtil import threadLoop
 ########################		下载线程		#################
 #输入：
 #		#url:https://18h.animezilla.com/manga/3689
@@ -28,10 +32,11 @@ import collections
 #		#...
 #		#3689-xxxxxx [215P]/lastPage.jpg
 class PageDownloadThread(threading.Thread):
-	def __init__(self, url, page, dir_path):
-		self.page = page
-		self.url = url
-		self.dir_path = dir_path
+	def __init__(self, args):
+		self.url = args[0]
+		self.dir_path = args[1]
+		self.page = args[2]
+		self.queue =args[3]
 		threading.Thread.__init__(self)
 		
 	def animezilla(self):
@@ -45,14 +50,15 @@ class PageDownloadThread(threading.Thread):
 		#判断文件存在
 		img_filename = '%s\\%d.jpg'%(self.dir_path,self.page)
 		if not os.path.exists(img_filename):
-			print('start downloading %s ...\n'%img_filename)
-			
 			#获取并解析页面
 			web_data = requests.get(web_url).content.decode('utf-8')
 			html = etree.HTML(web_data)
-			img_url = html.xpath("//div[@id='page-current']//img/@src")[0]
-			#print('web_url:%s\n'%web_url)
-			#print('img_url:%s\n'%img_url)		
+			img_url = html.xpath("//div[@id='page-current']//img/@src")
+			if img_url:
+				img_url = img_url[0]
+			else:
+				#最后一页regex变了
+				img_url = html.xpath("//div[@class='entry-content']//img/@src")[0]
 			#模拟浏览器
 			ua = UserAgent()
 			headers = {'User-Agent':ua.random,'Referer':web_url}
@@ -60,10 +66,10 @@ class PageDownloadThread(threading.Thread):
 			#图片保存
 			img_file = Image.open(io.BytesIO(response.content))
 			img_file.save(img_filename)
+			self.queue.put('%s done!\n'%img_filename)
 			print('%s done!\n'%img_filename)
-		else :
-			print('%s exists\n'%img_filename)
-		
+		else:
+			self.queue.put('%s exists\n'%img_filename)
 	def run(self):
 		self.animezilla()
 
@@ -78,8 +84,9 @@ class PageDownloadThread(threading.Thread):
 #		#
 #		#
 class BookManageThread(threading.Thread):
-	def __init__(self, url):
-		self.url = url
+	def __init__(self, args):
+		self.url = args[0]
+		self.queue = args[1]
 		threading.Thread.__init__(self)
 	def BookManage(self):
 		PAGE_DOWNLOAD_THREAD_NUM = 3
@@ -89,7 +96,8 @@ class BookManageThread(threading.Thread):
 		book_id_rindex = web_url.rfind('/')
 		book_id = web_url[book_id_rindex+1:]
 		#print('book_id :%s\n'%book_id)
-
+		print('BookManage:resolve book:%s\n'%book_id)
+		
 		#获取页面资源
 		web_url = '%s/2'%self.url
 		web_data = requests.get(web_url).content.decode('utf-8')
@@ -118,21 +126,45 @@ class BookManageThread(threading.Thread):
 		print('Download begin...\n')
 		
 		threads = []
+		end_page_cnt = 0
+		thread_queue = Queue(maxsize=1000)
 		if(totalPage > 1):
-			for i in range(1,totalPage) :
-				wflag = True
-				while wflag:
-					if len(threads) < PAGE_DOWNLOAD_THREAD_NUM:
-						t = PageDownloadThread(web_url,i,dir_path)
-						t.setDaemon(True)
-						t.start()
-						threads.append(t)
-						wflag = False
-					for th in threads:
-						if not th.isAlive():
-							threads.remove(th)
-						if wflag == True:
-							sleep(1)
+			for i in range(1,totalPage+1) :
+				img_filename = '%s\\%d.jpg'%(dir_path,i)
+				if not os.path.exists(img_filename):
+					threadLoop(threads, PageDownloadThread, (web_url,dir_path,i,thread_queue), PAGE_DOWNLOAD_THREAD_NUM)
+					print('start downloading %s ...\n'%img_filename)
+				else:
+					end_page_cnt = end_page_cnt + 1
+					print('%s exists\n'%img_filename)
+			while True:
+				try:
+					queue_content = thread_queue.get(block=False)
+					if queue_content :
+						end_page_cnt = end_page_cnt + 1
+					if end_page_cnt == totalPage:
+						break
+				except Empty:
+					if end_page_cnt == totalPage:
+						break
+				sleep (1)
+			print('end_page_cnt:%d\n'%end_page_cnt)
+		self.queue.put('%s-%s done'%(book_id,book_name))
+		'''
+		wflag = True
+		while wflag:
+			if len(threads) < PAGE_DOWNLOAD_THREAD_NUM:
+				t = PageDownloadThread((web_url, dir_path, i))
+				t.setDaemon(True)
+				t.start()
+				threads.append(t)
+				wflag = False
+			for th in threads:
+				if not th.isAlive():
+					threads.remove(th)
+				if wflag == True:
+					sleep(1)
+		'''
 
 	def run(self):
 		self.BookManage()
@@ -235,28 +267,37 @@ if __name__ == '__main__':
 	#init(dict_search)
 	BOOK_MANAGE_THREAD_NUM = 3
 	threads = []
-	totalBook =  len(list_book)
+	totalBook = len(list_book)
+	end_booktask_cnt = 0
+	thread_queue = Queue(maxsize=2*BOOK_MANAGE_THREAD_NUM)
+	
 	if(totalBook > 0):
-		for i in range(0,totalBook - 1) :
-			wflag = True
-			while wflag and len(list_book) > 0:
-				if len(threads) < BOOK_MANAGE_THREAD_NUM:
-					t = BookManageThread(list_book[i])
-					t.setDaemon(True)
-					t.start()
-					threads.append(t)
-					wflag = False
-				for th in threads:
-					if not th.isAlive():
-						threads.remove(th)
-					if wflag == True:
-						sleep(1)
-				sleep(1)
+		for i in range(totalBook) :
+			threadLoop(threads, BookManageThread, (list_book[i],thread_queue), BOOK_MANAGE_THREAD_NUM)		
 	while True:
-		sleep(1)
+		try:
+			queue_content = thread_queue.get(block=False)
+			if queue_content :
+				end_booktask_cnt = end_booktask_cnt + 1
+			if end_booktask_cnt == totalBook:
+				break
+		except Empty:
+			if end_booktask_cnt == totalBook:
+				break
+		sleep (1)
+	
 	#BookManage(url)	
 	
-	
+	'''
+	files_dirs = os.listdir('.')
+	dirlist = []
+	for d in files_dirs:
+		d_index = d.find('-')
+		if d_index != -1:
+			dirlist.append(d[:d_index])
+	for d in dirlist:
+		print('%s\n'%d)
+	'''
 	
 '''
 [	'https://18h.animezilla.com/', \
