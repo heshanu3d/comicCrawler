@@ -124,7 +124,7 @@ def book_manage(url, book_done_list):
     # 判断书名是否有[pages]否则自己加上，少部分图书采集不到总页数信息
     book_totalpage_pre = dir_path.rfind('[')
     book_totalpage_aff = dir_path.rfind(']')
-    if book_totalpage_pre == -1 or book_totalpage_aff == -1:
+    if book_totalpage_pre == -1 or book_totalpage_aff == -1 or dir_path[book_totalpage_pre + 1:book_totalpage_aff - 1].isalpha():
         dir_path = '%s[%dP]' % (dir_path, totalPage)
     # 去掉文件夹名中的非法字符
     dir_path = re.sub(r'[/\\:*?"<>|]', ' ', dir_path)
@@ -191,14 +191,14 @@ def search_book_link(url, book_list):
 # 规则
 # 持久层
 def search_category(url, category_dict):
-    regex_search_category = ['(18h.animezilla.com/topic$)', \
-                             '(18h.animezilla.com/doujinshi$)', \
-                             '(18h.animezilla.com/doujinshi/page/\d+$)', \
-                             '(18h.animezilla.com/manga$)', \
-                             '(18h.animezilla.com/manga/page/\d+$)', \
-                             '(18h.animezilla.com/doujinshi/original$)', \
-                             '(18h.animezilla.com/doujinshi/original/page/\d+$)', \
-                             '(18h.animezilla.com/doujinshi/parody$)', \
+    regex_search_category = ['(18h.animezilla.com/topic$)',
+                             '(18h.animezilla.com/doujinshi$)',
+                             '(18h.animezilla.com/doujinshi/page/\d+$)',
+                             '(18h.animezilla.com/manga$)',
+                             '(18h.animezilla.com/manga/page/\d+$)',
+                             '(18h.animezilla.com/doujinshi/original$)',
+                             '(18h.animezilla.com/doujinshi/original/page/\d+$)',
+                             '(18h.animezilla.com/doujinshi/parody$)',
                              '(18h.animezilla.com/doujinshi/parody/page/\d+$)']
 
     web_url = url
@@ -257,9 +257,10 @@ def book_done(book_done_list):
                 print('book %s has downloaded %s(%s total) pages:' % (d[:book_id_index], jpg_num, book_page))
                 if int(book_page) == jpg_num:
                     book_done_list.append(d[:book_id_index])
+    book_done_num = 0
     for d in book_done_list:
-        print('%s' % d)
-
+        book_done_num+=1
+    print('book_done_num:',book_done_num)
 
 if __name__ == '__main__':
     book_done_list = []
@@ -302,13 +303,18 @@ if __name__ == '__main__':
          'https://18h.animezilla.com/manga/page/9']
     book_list = []
     # for cateIndex in range(len(category_list)):
-    for cateIndex in range(0, 2):
+    for cateIndex in range(4, 8):
         search_book_link(category_list[cateIndex], book_list)
 
-    BOOK_MANAGE_THREAD_NUM = 3
+    BOOK_MANAGE_THREAD_NUM = 10
     proceeds = []
     totalBook = len(book_list)
 
     if totalBook > 0:
         for i in range(totalBook):
-            process_loop(proceeds, book_manage, (book_list[i], book_done_list,), BOOK_MANAGE_THREAD_NUM)
+            # 判断是否已经下载完毕
+            book_id = book_list[i][book_list[i].rfind('/') + 1:]
+            if not book_id in book_done_list:
+                process_loop(proceeds, book_manage, (book_list[i], book_done_list,), BOOK_MANAGE_THREAD_NUM)
+            else:
+                print('book %s has been downloaded done before!\n' % book_id)
