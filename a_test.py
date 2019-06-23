@@ -1,6 +1,7 @@
 import unittest
 import re
 from a import *
+import collections
 
 class MyTestCase(unittest.TestCase):
     def test_page_download(self):
@@ -43,7 +44,8 @@ class MyTestCase(unittest.TestCase):
         # 获取category_list
         category_dict = collections.defaultdict(list)
         category_dict[url] = 'F'
-        init_cat_dic(category_dict)
+        category_list = []
+        init_cat_dic(category_dict, category_list)
     def test_dir_name(self):
         s = '[中文H漫][うえかん] 好きのサインは\/喜歡的微兆是? [200P]'
         # os.mkdir(s)
