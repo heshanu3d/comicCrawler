@@ -16,9 +16,12 @@ from lxml import etree
 from PIL import Image
 import re
 import collections
-
+#python2
+#from Queue import Empty, Full
+#python3
+from queue import Empty, Full
 from multiprocessing import Queue
-from Queue import Empty, Full
+
 
 from threadUtil import threadLoop
 ########################		下载线程		#################
@@ -36,7 +39,7 @@ class PageDownloadThread(threading.Thread):
 		self.url = args[0]
 		self.dir_path = args[1]
 		self.page = args[2]
-		self.queue =args[3]
+		#self.queue =args[3]
 		threading.Thread.__init__(self)
 		
 	def animezilla(self):
@@ -66,10 +69,10 @@ class PageDownloadThread(threading.Thread):
 			#图片保存
 			img_file = Image.open(io.BytesIO(response.content))
 			img_file.save(img_filename)
-			self.queue.put('%s done!\n'%img_filename)
+			#self.queue.put('%s done!\n'%img_filename)
 			print('%s done!\n'%img_filename)
-		else:
-			self.queue.put('%s exists\n'%img_filename)
+		#else:
+		#	self.queue.put('%s exists\n'%img_filename)
 	def run(self):
 		self.animezilla()
 
@@ -86,7 +89,7 @@ class PageDownloadThread(threading.Thread):
 class BookManageThread(threading.Thread):
 	def __init__(self, args):
 		self.url = args[0]
-		self.queue = args[1]
+		#self.queue = args[1]
 		threading.Thread.__init__(self)
 	def BookManage(self):
 		PAGE_DOWNLOAD_THREAD_NUM = 3
@@ -105,7 +108,11 @@ class BookManageThread(threading.Thread):
 		web_url = self.url
 		
 		#书名!!!
-		book_name = html.xpath("//h1[@class='entry-title']//a/text()")[0].encode('gbk','ignore')
+		#python2
+		#book_name = html.xpath("//h1[@class='entry-title']//a/text()")[0].encode('gbk','ignore')
+		#python3
+		book_name = html.xpath("//h1[@class='entry-title']//a/text()")[0]		
+		print(book_name)
 		book_name_index = book_name.rfind('/')
 		book_name = book_name[book_name_index+1:]
 		#print('book_name:%s\n'%book_name)
@@ -121,22 +128,27 @@ class BookManageThread(threading.Thread):
 		print('%s\n'%title)
 		rIndex = title.rfind('/')
 		totalPage = title[rIndex+1:]
-		totalPage = string.atoi(totalPage)
+		#python2
+		#totalPage = string.atoi(totalPage)
+		#python3
+		totalPage = int(totalPage)
 		print('%s has %d pages!\n'%(dir_path,totalPage))
 		print('Download begin...\n')
 		
 		threads = []
-		end_page_cnt = 0
-		thread_queue = Queue(maxsize=1000)
+		#end_page_cnt = 0
+		#thread_queue = Queue(maxsize=1000)
 		if(totalPage > 1):
 			for i in range(1,totalPage+1) :
 				img_filename = '%s\\%d.jpg'%(dir_path,i)
 				if not os.path.exists(img_filename):
-					threadLoop(threads, PageDownloadThread, (web_url,dir_path,i,thread_queue), PAGE_DOWNLOAD_THREAD_NUM)
+					#threadLoop(threads, PageDownloadThread, (web_url,dir_path,i,thread_queue), PAGE_DOWNLOAD_THREAD_NUM)
+					threadLoop(threads, PageDownloadThread, (web_url,dir_path,i,), PAGE_DOWNLOAD_THREAD_NUM)
 					print('start downloading %s ...\n'%img_filename)
 				else:
-					end_page_cnt = end_page_cnt + 1
+					#end_page_cnt = end_page_cnt + 1
 					print('%s exists\n'%img_filename)
+			'''
 			while True:
 				try:
 					queue_content = thread_queue.get(block=False)
@@ -149,7 +161,8 @@ class BookManageThread(threading.Thread):
 						break
 				sleep (1)
 			print('end_page_cnt:%d\n'%end_page_cnt)
-		self.queue.put('%s-%s done'%(book_id,book_name))
+			'''
+		#self.queue.put('%s-%s done'%(book_id,book_name))
 		'''
 		wflag = True
 		while wflag:
@@ -168,6 +181,36 @@ class BookManageThread(threading.Thread):
 
 	def run(self):
 		self.BookManage()
+
+def searchBookLink(url, book_list):
+	regex_search_book = ['(18h.animezilla.com/manga/\d+)',]
+	web_url = url
+	#书ID!!!
+	book_id_rindex = web_url.rfind('/')
+	book_id = web_url[book_id_rindex+1:]
+	#print('book_id :%s\n'%book_id)
+	
+	#获取页面资源
+	web_data = requests.get(web_url).content.decode('utf-8')
+	html = etree.HTML(web_data)
+	
+	#书链接名!!!
+	book_links = html.xpath("//a/@href")
+	book_link_num = 0
+	for bl in book_links:
+		for r in regex_search_book:
+			if r and re.findall(r,bl):
+				bl_index = bl.find('18h.animezilla.com')
+				bl = 'https://%s'%bl[bl_index:]
+				book_list.append(bl)
+				#if not category_dict[bl]:
+					#category_dict[bl] = 'F'
+				book_link_num=1+book_link_num
+				print('link:%s'%bl)
+
+	print('%s add %d book links\n'%(web_url,book_link_num))
+	print(book_list)
+	print('---------------------------------------------')
 ########################		搜索线程		#################
 #输入：
 #		#
@@ -180,113 +223,115 @@ class BookManageThread(threading.Thread):
 #		#
 #规则
 #持久层
-def search(url, list_book, dict_search):
-	regex_search = 	['(18h.animezilla.com/topic$)',\
-					 '(18h.animezilla.com/doujinshi$)',\
-					 '(18h.animezilla.com/doujinshi/page/\d+$)',\
-					 '(18h.animezilla.com/manga$)',\
-					 '(18h.animezilla.com/manga/page/\d+$)',\
-					 '(18h.animezilla.com/doujinshi/original$)',\
-					 '(18h.animezilla.com/doujinshi/original/page/\d+$)',\
-					 '(18h.animezilla.com/doujinshi/parody$)',\
-					 '(18h.animezilla.com/doujinshi/parody/page/\d+$)']
-	regex_book = 	['(18h.animezilla.com/manga/\d+)']
-
-	web_url = url
+def searchCategory(url, category_dict):
+	regex_search_category = ['(18h.animezilla.com/topic$)',\
+					'(18h.animezilla.com/doujinshi$)',\
+					'(18h.animezilla.com/doujinshi/page/\d+$)',\
+					'(18h.animezilla.com/manga$)',\
+					'(18h.animezilla.com/manga/page/\d+$)',\
+					'(18h.animezilla.com/doujinshi/original$)',\
+					'(18h.animezilla.com/doujinshi/original/page/\d+$)',\
+					'(18h.animezilla.com/doujinshi/parody$)',\
+					'(18h.animezilla.com/doujinshi/parody/page/\d+$)']
 	
-	#书ID!!!
-	book_id_rindex = web_url.rfind('/')
-	book_id = web_url[book_id_rindex+1:]
-	#print('book_id :%s\n'%book_id)
+	web_url = url
 
 	#获取页面资源
 	web_data = requests.get(web_url).content.decode('utf-8')
 	html = etree.HTML(web_data)
 	
 	#书链接名!!!
-	book_links = html.xpath("//a/@href")
-	book_link_num = 0
-	for bl in book_links:
-		for r in regex_search:
-			if re.findall(r,bl):
-				bl_index = bl.find('18h.animezilla.com')
-				bl = 'https://%s'%bl[bl_index:]
-				if not dict_search[bl]:
-					dict_search[bl] = 'F'
-					book_link_num=1+book_link_num
-					print('link:%s'%bl)
-				#print bl
-		'''
-		for r in regex_book:
-			if re.findall(r,bl):
-				print bl
-		'''
-	print('%s add %d links\n'%(web_url,book_link_num))
-	print('-----')
+	links = html.xpath("//a/@href")
+	link_num = 0
+	for l in links:
+		for r in regex_search_category:
+			if r and re.findall(r,l):
+				l_index = l.find('18h.animezilla.com')
+				l = 'https://%s'%l[l_index:]
+				if not category_dict[l]:
+					category_dict[l] = 'F'
+					link_num=1+link_num
+					print('link:%s'%l)
 
-def init(dict_search):
+	print('%s add %d category links\n'%(web_url,link_num))
+	print('---------------------------------------------')
+
+def init(category_dict):
 	sflag = True
 	while(sflag):
 		sflag = False
-		for k,v in dict_search.items():
+		for k,v in category_dict.items():
 			if v == 'F':				
 				sflag = True
-				dict_search[k] = 'T'
-				search(k,list_book,dict_search)
+				category_dict[k] = 'T'
+				searchCategory(k,category_dict)
 	
-	for k in sorted(dict_search):
-		dict_search[k] = 'F'
-		print k
+	for k in sorted(category_dict):
+		category_dict[k] = 'F'
+		print(k)
 
 if __name__ == '__main__':
 	url = 'https://18h.animezilla.com/'
+	#获取category_list
+	#category_dict = collections.defaultdict(list)
+	#category_dict[url] = 'F'
+	#init(category_dict)
+	category_list = \
+	[	'https://18h.animezilla.com/', \
+		'https://18h.animezilla.com/doujinshi', \
+		'https://18h.animezilla.com/doujinshi/original', \
+		'https://18h.animezilla.com/doujinshi/page/2', \
+		'https://18h.animezilla.com/doujinshi/page/3', \
+		'https://18h.animezilla.com/doujinshi/page/4', \
+		'https://18h.animezilla.com/doujinshi/page/5', \
+		'https://18h.animezilla.com/doujinshi/page/6', \
+		'https://18h.animezilla.com/doujinshi/page/7', \
+		'https://18h.animezilla.com/doujinshi/parody', \
+		'https://18h.animezilla.com/doujinshi/parody/page/2', \
+		'https://18h.animezilla.com/doujinshi/parody/page/3', \
+		'https://18h.animezilla.com/doujinshi/parody/page/4', \
+		'https://18h.animezilla.com/doujinshi/parody/page/5', \
+		'https://18h.animezilla.com/doujinshi/parody/page/6', \
+		'https://18h.animezilla.com/doujinshi/parody/page/7', \
+		'https://18h.animezilla.com/manga', \
+		'https://18h.animezilla.com/manga/page/10', \
+		'https://18h.animezilla.com/manga/page/11', \
+		'https://18h.animezilla.com/manga/page/12', \
+		'https://18h.animezilla.com/manga/page/13', \
+		'https://18h.animezilla.com/manga/page/14', \
+		'https://18h.animezilla.com/manga/page/15', \
+		'https://18h.animezilla.com/manga/page/16', \
+		'https://18h.animezilla.com/manga/page/17', \
+		'https://18h.animezilla.com/manga/page/18', \
+		'https://18h.animezilla.com/manga/page/2', \
+		'https://18h.animezilla.com/manga/page/3', \
+		'https://18h.animezilla.com/manga/page/4', \
+		'https://18h.animezilla.com/manga/page/5', \
+		'https://18h.animezilla.com/manga/page/6', \
+		'https://18h.animezilla.com/manga/page/7', \
+		'https://18h.animezilla.com/manga/page/8', \
+		'https://18h.animezilla.com/manga/page/9']
+	book_list = []
+	for cateIndex in range(1):
+		searchBookLink(category_list[cateIndex], book_list)
 	
-	url2 = 'https://18h.animezilla.com/doujinshi/page/2'
-	url3 = 'https://18h.animezilla.com/doujinshi/page/3'
-	url4 = 'https://18h.animezilla.com/doujinshi/page/4'
-	url5 = 'https://18h.animezilla.com/doujinshi/page/5'
-	url6 = 'https://18h.animezilla.com/doujinshi/page/6'
-	url7 = 'https://18h.animezilla.com/doujinshi/page/7'
-	
-	list_book = [	'https://18h.animezilla.com/manga/3783',\
+	'''
+	book_list = [	'https://18h.animezilla.com/manga/3783',\
 					'https://18h.animezilla.com/manga/3775',\
 					'https://18h.animezilla.com/manga/3777',\
 					'https://18h.animezilla.com/manga/3773',\
 					'https://18h.animezilla.com/manga/3766',\
 					'https://18h.animezilla.com/manga/3757']
-	dict_search = collections.defaultdict(list)
-	dict_search[url] = 'F'
-	
-	dict_search[url2] = 'F'
-	dict_search[url3] = 'F'
-	dict_search[url4] = 'F'
-	dict_search[url5] = 'F'
-	dict_search[url6] = 'F'
-	dict_search[url7] = 'F'
-	
-	#init(dict_search)
+	'''
 	BOOK_MANAGE_THREAD_NUM = 3
 	threads = []
-	totalBook = len(list_book)
-	end_booktask_cnt = 0
-	thread_queue = Queue(maxsize=2*BOOK_MANAGE_THREAD_NUM)
+	totalBook = len(book_list)
 	
 	if(totalBook > 0):
 		for i in range(totalBook) :
-			threadLoop(threads, BookManageThread, (list_book[i],thread_queue), BOOK_MANAGE_THREAD_NUM)		
-	while True:
-		try:
-			queue_content = thread_queue.get(block=False)
-			if queue_content :
-				end_booktask_cnt = end_booktask_cnt + 1
-			if end_booktask_cnt == totalBook:
-				break
-		except Empty:
-			if end_booktask_cnt == totalBook:
-				break
-		sleep (1)
+			threadLoop(threads, BookManageThread, (book_list[i],thread_queue), BOOK_MANAGE_THREAD_NUM)		
 	
-	#BookManage(url)	
+	#BookManage(url)
 	
 	'''
 	files_dirs = os.listdir('.')
@@ -298,40 +343,3 @@ if __name__ == '__main__':
 	for d in dirlist:
 		print('%s\n'%d)
 	'''
-	
-'''
-[	'https://18h.animezilla.com/', \
-	'https://18h.animezilla.com/doujinshi', \
-	'https://18h.animezilla.com/doujinshi/original', \
-	'https://18h.animezilla.com/doujinshi/page/2', \
-	'https://18h.animezilla.com/doujinshi/page/3', \
-	'https://18h.animezilla.com/doujinshi/page/4', \
-	'https://18h.animezilla.com/doujinshi/page/5', \
-	'https://18h.animezilla.com/doujinshi/page/6', \
-	'https://18h.animezilla.com/doujinshi/page/7', \
-	'https://18h.animezilla.com/doujinshi/parody', \
-	'https://18h.animezilla.com/doujinshi/parody/page/2', \
-	'https://18h.animezilla.com/doujinshi/parody/page/3', \
-	'https://18h.animezilla.com/doujinshi/parody/page/4', \
-	'https://18h.animezilla.com/doujinshi/parody/page/5', \
-	'https://18h.animezilla.com/doujinshi/parody/page/6', \
-	'https://18h.animezilla.com/doujinshi/parody/page/7', \
-	'https://18h.animezilla.com/manga', \
-	'https://18h.animezilla.com/manga/page/10', \
-	'https://18h.animezilla.com/manga/page/11', \
-	'https://18h.animezilla.com/manga/page/12', \
-	'https://18h.animezilla.com/manga/page/13', \
-	'https://18h.animezilla.com/manga/page/14', \
-	'https://18h.animezilla.com/manga/page/15', \
-	'https://18h.animezilla.com/manga/page/16', \
-	'https://18h.animezilla.com/manga/page/17', \
-	'https://18h.animezilla.com/manga/page/18', \
-	'https://18h.animezilla.com/manga/page/2', \
-	'https://18h.animezilla.com/manga/page/3', \
-	'https://18h.animezilla.com/manga/page/4', \
-	'https://18h.animezilla.com/manga/page/5', \
-	'https://18h.animezilla.com/manga/page/6', \
-	'https://18h.animezilla.com/manga/page/7', \
-	'https://18h.animezilla.com/manga/page/8', \
-	'https://18h.animezilla.com/manga/page/9']
-'''

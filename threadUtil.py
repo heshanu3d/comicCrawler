@@ -18,7 +18,7 @@ def threadLoop(threads, thread_class, thread_args, thread_num):
 	while wflag:
 		if len(threads) < thread_num:
 			t = thread_class(thread_args)
-			t.setDaemon(True)
+			#t.setDaemon(True)
 			t.start()
 			threads.append(t)
 			wflag = False
