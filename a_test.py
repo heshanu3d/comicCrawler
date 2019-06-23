@@ -95,9 +95,12 @@ class MyTestCase(unittest.TestCase):
             search_book_link(category_list[cateIndex], book_list)
     def test_book_done_err(self):
         dir_path = '1977-[中文同人H漫][酒呑童子] 18号が催眠でNTRれる本 (七龍珠Z)'
+        dir_path = '1057-[中文同人H漫][6ro-] 七瀬さんに横恋慕 (金田一少年之事件簿)'
+        dir_path = '1613-[中文同人H漫][YU-RI] 黒蝶乱舞 (死神Bleach)'
         book_totalpage_pre = dir_path.rfind('[')
         book_totalpage_aff = dir_path.rfind(']')
-        if book_totalpage_pre == -1 or book_totalpage_aff == -1 or dir_path[book_totalpage_pre + 1:book_totalpage_aff - 1].isalpha():
+        if book_totalpage_pre == -1 or book_totalpage_aff == -1 or dir_path[book_totalpage_pre + 1:book_totalpage_aff -
+            1].isalpha() or not dir_path[book_totalpage_pre + 1:book_totalpage_aff - 1].isdigit():
             print(1)
         else:
             print(0)

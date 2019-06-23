@@ -124,7 +124,8 @@ def book_manage(url, book_done_list):
     # 判断书名是否有[pages]否则自己加上，少部分图书采集不到总页数信息
     book_totalpage_pre = dir_path.rfind('[')
     book_totalpage_aff = dir_path.rfind(']')
-    if book_totalpage_pre == -1 or book_totalpage_aff == -1 or dir_path[book_totalpage_pre + 1:book_totalpage_aff - 1].isalpha():
+    if book_totalpage_pre == -1 or book_totalpage_aff == -1 or dir_path[book_totalpage_pre + 1:book_totalpage_aff -
+        1].isalpha() or not dir_path[book_totalpage_pre + 1:book_totalpage_aff - 1].isdigit():
         dir_path = '%s[%dP]' % (dir_path, totalPage)
     # 去掉文件夹名中的非法字符
     dir_path = re.sub(r'[/\\:*?"<>|]', ' ', dir_path)
@@ -301,20 +302,18 @@ if __name__ == '__main__':
          'https://18h.animezilla.com/manga/page/7', \
          'https://18h.animezilla.com/manga/page/8', \
          'https://18h.animezilla.com/manga/page/9']
-    book_list = []
-    # for cateIndex in range(len(category_list)):
-    for cateIndex in range(4, 8):
-        search_book_link(category_list[cateIndex], book_list)
 
-    BOOK_MANAGE_THREAD_NUM = 10
     proceeds = []
-    totalBook = len(book_list)
-
-    if totalBook > 0:
-        for i in range(totalBook):
-            # 判断是否已经下载完毕
-            book_id = book_list[i][book_list[i].rfind('/') + 1:]
-            if not book_id in book_done_list:
-                process_loop(proceeds, book_manage, (book_list[i], book_done_list,), BOOK_MANAGE_THREAD_NUM)
-            else:
-                print('book %s has been downloaded done before!\n' % book_id)
+    for cateIndex in range(len(category_list)):
+        book_list = []
+        search_book_link(category_list[cateIndex], book_list)
+        BOOK_MANAGE_THREAD_NUM = 10
+        totalBook = len(book_list)
+        if totalBook > 0:
+            for i in range(totalBook):
+                # 判断是否已经下载完毕
+                book_id = book_list[i][book_list[i].rfind('/') + 1:]
+                if not book_id in book_done_list:
+                    process_loop(proceeds, book_manage, (book_list[i], book_done_list,), BOOK_MANAGE_THREAD_NUM)
+                else:
+                    print('book %s has been downloaded done before!\n' % book_id)
