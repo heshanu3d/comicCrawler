@@ -4,7 +4,7 @@ from a import *
 import collections
 
 class MyTestCase(unittest.TestCase):
-    def test_page_download(self):
+    def test_page_download_thread(self):
         threads = []
         web_url = 'https://18h.animezilla.com/manga/3783'
         dir_path = 'unit-test'
@@ -21,19 +21,29 @@ class MyTestCase(unittest.TestCase):
                     print('start downloading %s ...\n' % img_filename)
                 else:
                     print('%s exists\n' % img_filename)
+    def test_page_download(self):
+        web_url = 'https://18h.animezilla.com/manga/1768'
+        dir_path = 'unit-test'
+        i = 2
+        page_download(web_url, dir_path, i)
     def test_book_manage(self):
+        web_url = 'https://18h.animezilla.com/manga/1768'
+        book_done_list = []
+        book_manage(web_url,book_done_list)
+    def test_book_manage_process(self):
         book_list = ['https://18h.animezilla.com/manga/3783', \
                      'https://18h.animezilla.com/manga/3775', \
                      'https://18h.animezilla.com/manga/3777', \
                      'https://18h.animezilla.com/manga/3773', \
                      'https://18h.animezilla.com/manga/3766', \
                      'https://18h.animezilla.com/manga/3757']
+        book_done_list = []
         BOOK_MANAGE_THREAD_NUM = 3
         proceeds = []
         totalBook = len(book_list)
         if totalBook > 0:
             for i in range(totalBook):
-                process_loop(proceeds, book_manage, (book_list[i],), BOOK_MANAGE_THREAD_NUM)
+                process_loop(proceeds, book_manage, (book_list[i],book_done_list,), BOOK_MANAGE_THREAD_NUM)
     def test_book_done(self):
         book_done_list = []
         book_done(book_done_list)
@@ -99,10 +109,15 @@ class MyTestCase(unittest.TestCase):
         dir_path = '1613-[中文同人H漫][YU-RI] 黒蝶乱舞 (死神Bleach)'
         book_totalpage_pre = dir_path.rfind('[')
         book_totalpage_aff = dir_path.rfind(']')
-        if book_totalpage_pre == -1 or book_totalpage_aff == -1 or dir_path[book_totalpage_pre + 1:book_totalpage_aff -
-            1].isalpha() or not dir_path[book_totalpage_pre + 1:book_totalpage_aff - 1].isdigit():
+        if book_totalpage_pre == -1 or book_totalpage_aff == -1 or not dir_path[book_totalpage_pre + 1:book_totalpage_aff - 1].isdigit():
             print(1)
         else:
             print(0)
+    def test_totalpage_notequal_err(self):
+        s = '[中文H漫][うえかん] 好きのサインは\/喜歡的微兆是? [200P]'
+        print(s)
+        totalpage = 123
+        s = re.sub(r'(\[(\d+)P\])$', '[%dP]'%totalpage, s)
+        print(s)
 if __name__ == '__main__':
     unittest.main()

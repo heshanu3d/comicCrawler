@@ -124,11 +124,12 @@ def book_manage(url, book_done_list):
     # 判断书名是否有[pages]否则自己加上，少部分图书采集不到总页数信息
     book_totalpage_pre = dir_path.rfind('[')
     book_totalpage_aff = dir_path.rfind(']')
-    if book_totalpage_pre == -1 or book_totalpage_aff == -1 or dir_path[book_totalpage_pre + 1:book_totalpage_aff -
-        1].isalpha() or not dir_path[book_totalpage_pre + 1:book_totalpage_aff - 1].isdigit():
+    if book_totalpage_pre == -1 or book_totalpage_aff == -1 or not dir_path[book_totalpage_pre + 1:book_totalpage_aff - 1].isdigit():
         dir_path = '%s[%dP]' % (dir_path, totalPage)
-    # 去掉文件夹名中的非法字符
+    # 去掉文件夹名中的非法字符，参考test_dir_name
     dir_path = re.sub(r'[/\\:*?"<>|]', ' ', dir_path)
+    # 更改文件夹名里的总页数和实际总页数不一致情况，参考test_totalpage_notequal_err
+    dir_path = re.sub(r'(\[(\d+)P\])$', '[%dP]'%totalPage, dir_path)
     if not os.path.exists(dir_path):
         os.mkdir(dir_path)
         print('mkdir %s\n' % dir_path)
