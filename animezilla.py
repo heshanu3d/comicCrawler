@@ -7,7 +7,8 @@ from lxml import etree
 
 from PIL import Image
 import re
-
+from six import PY2, PY3
+import string
 # python2
 # from Queue import Empty, Full
 # python3
@@ -103,9 +104,11 @@ def book_manage(url, book_done_list, dir):
 
     # 书名!!!
     # python2
-    # book_name = html.xpath("//h1[@class='entry-title']//a/text()")[0].encode('gbk','ignore')
+    if PY2:
+        book_name = html.xpath("//h1[@class='entry-title']//a/text()")[0].encode('gbk','ignore')
     # python3
-    book_name = html.xpath("//h1[@class='entry-title']//a/text()")[0]
+    elif PY3:
+        book_name = html.xpath("//h1[@class='entry-title']//a/text()")[0]
     print(book_name)
     book_name_index = book_name.rfind('/')
     book_name = book_name[book_name_index + 1:]
@@ -117,9 +120,11 @@ def book_manage(url, book_done_list, dir):
     rIndex = title.rfind('/')
     totalPage = title[rIndex + 1:]
     # python2
-    # totalPage = string.atoi(totalPage)
+    if PY2:
+        totalPage = string.atoi(totalPage)
     # python3
-    totalPage = int(totalPage)
+    elif PY3:
+        totalPage = int(totalPage)
 
     # 创建文件夹!!!
     # 判断书名是否有[pages]否则自己加上，少部分图书采集不到总页数信息

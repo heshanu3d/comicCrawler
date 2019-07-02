@@ -174,5 +174,7 @@ class MyTestCase(unittest.TestCase):
             html = etree.HTML(web_data)
             img_url = html.xpath("//div[@id='page-current']//img/@src")
             print(img_url)
+
+
 if __name__ == '__main__':
     unittest.main()
